@@ -1,0 +1,94 @@
+@require: option
+@require: list
+
+let (=>) l r = (l, r)
+
+let glue delimiter l r = l ^ delimiter ^ r
+
+let newline = #`
+
+`#
+
+let (^^) = glue newline
+
+let prefix p s = p ^ s
+
+let suffix x s = s ^ x
+
+let wrap p x s = p ^ s ^ x
+
+let (*->) f g x = g (f x)
+
+let left (l, _) = l
+
+let right (_, r) = r
+
+let-rec join
+  | f [ ]             = ` `
+  | f [x]             = x
+  | f (x :: xs)       = f x (join f xs)
+
+let parens = wrap `(` `)`
+
+let braces = wrap `{` `}`
+
+let brackets = wrap `[` `]`
+
+let endl s = suffix newline
+
+let cmd name = wrap (prefix `\` name) newline
+
+let icmd name = prefix (prefix `\` name)
+
+let import-spec options package =
+  let option-spec = (
+    match options with
+    | []   -> ` `
+    | ops  -> brackets (join (glue `, `) ops)
+  ) in
+  option-spec ^ braces package
+
+let environment name inner =
+  cmd `begin` (braces name) ^
+  inner ^
+  cmd `end` (braces name)
+
+let block-environment ti name bt =
+  environment name (stringify-block ti bt)
+
+let inline-environment ti name it =
+  environment name (stringify-block ti it)
+
+type preamble = Preamble of (text-info -> string)
+
+let make-preamble s = Preamble (fun ti -> s)
+
+let usepackage options package =
+  make-preamble (cmd `usepackage` (import-spec options package))
+
+let-rec eval-preamble
+  | ti (Preamble (p)) = p ti
+
+let usepackages pkgs =
+  Preamble (fun ti ->
+    pkgs |> List.map (fun (o, p) -> eval-preamble ti (usepackage o p)) |> join (^)
+  )
+
+let title it =
+  Preamble (fun ti -> cmd `title` (braces (stringify-inline ti it)))
+
+let author it =
+  Preamble (fun ti -> cmd `author` (braces (stringify-inline ti it)))
+
+let document options class preambles bt =
+  let ti = get-initial-text-info () in
+    cmd `documentclass` (import-spec options class) ^
+    join (^) (List.map (eval-preamble ti) preambles) ^
+    block-environment ti `document` bt
+
+let-block ti +direct s = s
+
+let-inline ti \direct s = s
+
+let-block ti +environment name bt =
+  block-environment ti name bt
