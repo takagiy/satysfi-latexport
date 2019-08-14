@@ -1,0 +1,24 @@
+@import: latexport
+
+let thispagestyle style =
+  cmd `thispagestyle` (braces style)
+
+let-block ti +maketitle =
+  cmd `maketitle` ` `
+
+let-block +titlepage inner = '<
+  +environment(`titlepage`) <
+    #inner;
+    +direct(thispagestyle `empty`);
+  >
+>
+
+let-block ti +p it =
+  newline ^ (stringify-inline ti it) ^ newline ^ newline
+
+let-inline ti \LaTeX = icmd `LaTeX` ` `
+
+let-inline ti \SATySFi = icmd `SATySFi` ` `
+
+let bxtexlogoimport logo =
+  make-preamble (cmd `bxtexlogoimport` (braces logo))
